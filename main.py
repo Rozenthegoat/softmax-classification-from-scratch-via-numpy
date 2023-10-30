@@ -1,11 +1,16 @@
 import numpy as np
 import pandas as pd
 from helper import *
+from helper import Sigmoid
 from sklearn.model_selection import train_test_split
 
 
 def CrossEntropyLoss(predict, ground_truth):
     loss = 0
+    for i in range(predict.shape[0]):
+        y_gt = ground_truth[i]
+        y_pred = predict[i]
+        y_sig = Sigmoid(y_gt, y_pred)
 
     return loss
 
