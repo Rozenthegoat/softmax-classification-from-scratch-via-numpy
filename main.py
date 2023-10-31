@@ -3,9 +3,41 @@ import pandas as pd
 from helper import *
 from helper import Sigmoid
 from sklearn.model_selection import train_test_split
+import mnist
+# from mnist import LoadMNIST
+from os.path import join
+import time
+
+class Weight():
+    def __init__(self, param_num):
+        """
+        param_num: number of learnable parameters
+                    in this case, image will be flatten to a 784 by 1 matrix,
+                    each pixel will have its own learnable parameter, i.e., theta.
 
 
-def CrossEntropyLoss(predict, ground_truth):
+        self.metrix: the matrix of learnable parameters
+        self.grad  : the metrix of gradients
+        """
+        self.metrix = np.zeros((param_num, 1))
+        self.grad = np.zeros((param_num, 1))
+
+    def update_weight(self, lr=0.001, grad=None):
+        """
+        After finishing iterating one batch, the parameter matrix needs to be updated. 
+        lr  : learning rate, 0.001 by default.
+        grad: the metrix of gradients
+        """
+        for i in range(self.metrix.shape[0]):
+            self.metrix[i] = self.metrix[i] - lr * self.grad[i]
+
+        return self.metrix
+
+    def get_weight_metrix(self):
+        return self.metrix
+
+
+def CrossEntropyLoss(w, b, predict, ground_truth):
     loss = 0
     for i in range(predict.shape[0]):
         y_gt = ground_truth[i]
@@ -23,7 +55,7 @@ def step_gradient_update(w, b, input, ground_truth, lr):
         x = input[i]
         y = ground_truth[i]
         pred = np.matmul(w.T, x)
-        loss = CrossEntropyLoss(pred, y)
+        loss = CrossEntropyLoss(w, b, pred, y)
         grad_w += -2*y*x + 2*(x**2)*m + 2*x*b
         grad_b += -2*y + 2*m*x + 2*b
 
@@ -33,21 +65,34 @@ def step_gradient_update(w, b, input, ground_truth, lr):
     return new_w, new_b
 
 if __name__ == '__main__':
-    # data preparation
-    data = pd.read_csv('data.csv')
-    data = np.array(data)
-    X = data[:-1]
-    y = data[-1]
-    x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    # data preparation, check mnist.py carefully
+    x_train, y_train, x_test, y_test = mnist.LoadMNIST()
+
+    # Initialize learnable parameters
+    param_num = x_train[0].flatten().shape[0]
+    weight = Weight(param_num=param_num)
 
     # hyperparameters
     lr = 1e-3
     epochs = 5
     batch_size = 20
-    
-    # learnable parameters
-    w = np.zeros(X.shape[1])
-    b = 0
 
+    train_start_time = time.time()
+    # training procedure
     for i in range(epochs):
-        w, b = step_gradient_update(w, b, x_train, y_train, lr)
+        for img_idx in range(len(x_train)):
+            x = x_train[img_idx].flatten() # flatten all rows into one row
+            ground_truth = y_train[img_idx]
+            w = weight.get_weight_metrix()
+            # print(w)
+            # print(w.shape)
+            # print(type(w))
+            pred_y = np.matmul(x, w) # linear combination of 1*784 metrix and 784 * 1 metrix
+            print(pred_y)
+            print(pred_y.shape)
+            # TODO: calculate gradient
+            # TODO: gradient decent
+            # TODO: calculate cross entropy loss
+
+    train_end_time = time.time()
+    print(f"Finish training, cost {train_end_time-train_start_time:.2f} sec.")
