@@ -1,12 +1,13 @@
 import numpy as np
 import pandas as pd
 from helper import *
-from helper import Sigmoid
+from helper import CrossEntropyLoss
 from sklearn.model_selection import train_test_split
 import mnist
 # from mnist import LoadMNIST
 from os.path import join
 import time
+from tqdm import tqdm
 
 class Weight():
     def __init__(self, param_num):
@@ -14,85 +15,99 @@ class Weight():
         param_num: number of learnable parameters
                     in this case, image will be flatten to a 784 by 1 matrix,
                     each pixel will have its own learnable parameter, i.e., theta.
-
-
         self.metrix: the matrix of learnable parameters
-        self.grad  : the metrix of gradients
+        self.loss  : loss
         """
-        self.metrix = np.zeros((param_num, 1))
-        self.grad = np.zeros((param_num, 1))
+        self.weight_metrix = np.zeros((param_num, 1))
+        self.loss = 0
 
-    def update_weight(self, lr=0.001, grad=None):
+    def update_weight_metrix(self, grad, lr):
         """
         After finishing iterating one batch, the parameter matrix needs to be updated. 
-        lr  : learning rate, 0.001 by default.
         grad: the metrix of gradients
         """
-        for i in range(self.metrix.shape[0]):
-            self.metrix[i] = self.metrix[i] - lr * self.grad[i]
+        for i in range(self.weight_metrix.shape[0]):
+            self.weight_metrix[i] = self.weight_metrix[i] - lr * grad[i]
 
-        return self.metrix
+        return self.weight_metrix
 
     def get_weight_metrix(self):
-        return self.metrix
+        return self.weight_metrix
 
 
-def CrossEntropyLoss(w, b, predict, ground_truth):
-    loss = 0
-    for i in range(predict.shape[0]):
-        y_gt = ground_truth[i]
-        y_pred = predict[i]
-        y_sig = Sigmoid(y_gt, y_pred)
+class Gradient():
+    def __init__(self, param_num):
+        """
+        param_num: number of learnable parameters
+                    in this case, image will be flatten to a 784 by 1 matrix,
+                    each pixel will have its own learnable parameter, i.e., theta.
+        gradient_metrix: same shape as learnable parameter metrix
+        """
+        self.gradient_metrix = np.zeros((param_num, 1))
 
-    return loss
+    def calculate_gradient(self, curr_x, curr_y, ground_truth):
+        """
+        curr_x       : current training sample, 1*784 image here
+        curr_y       : current label, single digit from 0 to 9
+        ground_truth : full set of ground truth value, y_train
+        """
+        y_i = curr_y
+        p_j = Softmax(curr_y, ground_truth)
+        for j in range(self.gradient_metrix.shape[0]):
+            if j == y_i:
+                self.gradient_metrix[j] = - (1 - p_j) * curr_x[j]
+            else:
+                self.gradient_metrix[j] = p_j * curr_x[j]
 
-def step_gradient_update(w, b, input, ground_truth, lr):
-    grad_w = 0
-    grad_b = 0
-    loss = 0
+        return self.gradient_metrix
 
-    for i in range(data.shape[0]):
-        x = input[i]
-        y = ground_truth[i]
-        pred = np.matmul(w.T, x)
-        loss = CrossEntropyLoss(w, b, pred, y)
-        grad_w += -2*y*x + 2*(x**2)*m + 2*x*b
-        grad_b += -2*y + 2*m*x + 2*b
-
-    new_w = w - lr * grad_w / input.shape[0]
-    new_b = b - lr * grad_b / input.shape[0]
-
-    return new_w, new_b
 
 if __name__ == '__main__':
     # data preparation, check mnist.py carefully
     x_train, y_train, x_test, y_test = mnist.LoadMNIST()
 
+    # hyperparameters
+    lr = 1e-3
+    epochs = 5
+
     # Initialize learnable parameters
     param_num = x_train[0].flatten().shape[0]
     weight = Weight(param_num=param_num)
 
-    # hyperparameters
-    lr = 1e-3
-    epochs = 5
-    batch_size = 20
+    # Initialize learnable parameters
+    gradients = Gradient(param_num=param_num)
 
+    accuracy = 0
     train_start_time = time.time()
     # training procedure
     for i in range(epochs):
-        for img_idx in range(len(x_train)):
+        print(f"################  Start training at epoch {i+1}  ################")
+        prediction = [] # record all predicted y obtained in this current training epoch
+        for img_idx in tqdm(range(len(x_train))):
             x = x_train[img_idx].flatten() # flatten all rows into one row
             ground_truth = y_train[img_idx]
             w = weight.get_weight_metrix()
-            # print(w)
-            # print(w.shape)
-            # print(type(w))
             pred_y = np.matmul(x, w) # linear combination of 1*784 metrix and 784 * 1 metrix
-            print(pred_y)
-            print(pred_y.shape)
-            # TODO: calculate gradient
+            prediction.append(pred_y)
+            # calculate gradient, aka currrent_gradient
+            grad_after_this_sample = gradients.calculate_gradient(x, pred_y, y_train)
             # TODO: gradient decent
-            # TODO: calculate cross entropy loss
+            weight.update_weight_metrix(grad_after_this_sample, lr)
+        # Calculate cross entropy loss
+        loss = CrossEntropyLoss(prediction, y_train)
+
+        # testing
+        correct_num = 0
+        w = weight.get_weight_metrix()
+        print(f"################  Start testing at epoch {i+1}  ################")
+        for test_idx in tqdm(range(len(x_test))):
+            x = x_test[test_idx].flatten()
+            ground_truth = y_test[test_idx]
+            pred_y = np.matmul(x, w)
+            if pred_y == ground_truth:
+                correct_num += 1
+        accuracy = correct_num / len(x_test)
+        print(f"###  Finish training epoch {i+1}, loss: {loss:.4f}, accuracy: {100*accuracy:.2f}%  ###")
 
     train_end_time = time.time()
-    print(f"Finish training, cost {train_end_time-train_start_time:.2f} sec.")
+    print(f"Finish training, final accuracy: {100*accuracy:.2f}%, cost {train_end_time-train_start_time:.2f} sec.")

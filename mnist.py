@@ -86,6 +86,7 @@ def LoadMNIST():
     load_end_time = time.time()
     print(f"Finish loading MNIST dataset, cost {load_end_time-load_start_time:.2f} sec.")
     mnist_description = f"""
+########################################################################################
 Description of MNIST Dataset
 
     Number of train image: {len(x_train)}
@@ -96,6 +97,7 @@ Description of MNIST Dataset
 MNIST dataset consists 60000 training data, 10000 testing data.
 x_train, y_train, x_test, y_test are all in type of {type(x_train)}.
 For each image, its type is {type(x_train[0])}, the shape of it is: {x_train[0].shape}.
+########################################################################################
     """
     print(mnist_description)
 
