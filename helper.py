@@ -1,32 +1,37 @@
 import numpy as np
 from math import exp, log
 
+num_of_class = 10 # number of classes
 
-def Softmax(y_k, ground_truth):
+def Softmax(predict):
     """
-    y_k         : aka y_pred
-    ground_truth: full set of ground_truth value
+    predict     : result of w*X, ten predicted values, 1*10
     """
-    p_k = 0
+    softmax = np.zeros(predict.shape)
     exp_all = 0
-    for i in range(len(ground_truth)):
-        y_i = ground_truth[i]
+    for i in range(predict.shape[0]):
+        y_i = predict[i]
         exp_all += exp(y_i)
-    p_k = exp(y_k) / exp_all
-    return p_k
+    for i in range(predict.shape[0]):
+        p_i = exp(predict[i]) / exp_all
+        softmax[i] = p_i
+    return softmax
 
-def CrossEntropyLoss(predict, ground_truth):
+def CrossEntropyLoss(p_softmax, y_true):
     """
-    Calculate in terms of every single image
-    predict     : 60000 length of list
-    ground_truth: 60000 length of list, aka y_train
+    p_softmax   : 10*1 metrix, p_0 to p_9
+    y_true      : ground truth value of current y
     """
+    one_hot = get_one_hot(y_true)
     loss = 0
-    if len(predict) != len(ground_truth):
-        raise ValueError("雪豹闭嘴")
-    for i in range(len(predict)):
-        y_pred = predict[i]
-        y_true = ground_truth[i]
-        p_i = Softmax(y_pred, ground_truth)
-        loss += - y_true * log(p_i)
+    for i in range(p_softmax.shape[0]):
+        p_i = p_softmax[i]
+        y_hat = one_hot[i] # aka y_hat
+        # print(y_true, log(p_i))
+        loss += - y_hat * log(p_i)
     return loss
+
+def get_one_hot(y_true):
+    one_hot = [0] * num_of_class
+    one_hot[y_true] = 1
+    return one_hot

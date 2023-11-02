@@ -18,7 +18,7 @@ class Weight():
         self.metrix: the matrix of learnable parameters
         self.loss  : loss
         """
-        self.weight_metrix = np.zeros((param_num, 1))
+        self.weight_metrix = np.zeros((10, param_num)) # 10 classes
         self.loss = 0
 
     def update_weight_metrix(self, grad, lr):
@@ -43,7 +43,7 @@ class Gradient():
                     each pixel will have its own learnable parameter, i.e., theta.
         gradient_metrix: same shape as learnable parameter metrix
         """
-        self.gradient_metrix = np.zeros((param_num, 1))
+        self.gradient_metrix = np.zeros((param_num, 10))
 
     def calculate_gradient(self, curr_x, curr_y, ground_truth):
         """
@@ -55,20 +55,67 @@ class Gradient():
         p_j = Softmax(curr_y, ground_truth)
         for j in range(self.gradient_metrix.shape[0]):
             if j == y_i:
-                self.gradient_metrix[j] = - (1 - p_j) * curr_x[j]
+                self.gradient_metrix[j] = - (1 - p_j) * curr_x
             else:
-                self.gradient_metrix[j] = p_j * curr_x[j]
+                self.gradient_metrix[j] = p_j * curr_x
 
         return self.gradient_metrix
+
+    def linear_layer(X):
+        """
+        aka FC layer
+        X: current data, 784*1 matrix
+        """
+        grad_y_to_w = X.T
+        return grad_y_to_w
+
+    def softmax_layer(p_softmax, grad_J_to_p):
+        """
+        y_pred: current predicted y value
+        y_true: current true y value, a scalar, representing j
+        # p_softmax: 1*10 softmax probability of current data
+        ground_truth: full set of y_train, 1*10 list
+
+        Return:
+        grad_p_to_y: 1*10 numpy array
+        """
+        grad_J_to_y = np.zeros(p_softmax.shape)
+        for i in range(grad_J_to_y.shape[0]):
+            sum = 0
+            for j in range(grad_J_to_y.shape[0]):
+                if i == j:
+                    continue
+                else:
+                    sum += grad_J_to_p[j] * p_softmax[j] * p_softmax[i]
+            grad_J_to_y[i] = grad_J_to_p[i] * p_softmax[i] * (1 - p_softmax[i]) - sum
+        return grad_J_to_y
+
+    def loss_layer(p, y_true):
+        """
+        p: p_softmax, 1*10 list
+        y_true: current true y
+        
+        Return
+        grad_J_to_p: 10*1 numpy array 
+        """
+        # print(p, y_true)
+        one_hot = get_one_hot(y_true)
+        grad_J_to_p = p.copy()
+        for i in range(len(grad_J_to_p)):
+            y_hat = one_hot[i]
+            grad_J_to_p[i] = - y_hat / p[i]
+        return grad_J_to_p
 
 
 if __name__ == '__main__':
     # data preparation, check mnist.py carefully
     x_train, y_train, x_test, y_test = mnist.LoadMNIST()
+    ground_truth = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
     # hyperparameters
     lr = 1e-3
     epochs = 5
+    batch_size = 100
 
     # Initialize learnable parameters
     param_num = x_train[0].flatten().shape[0]
@@ -84,23 +131,43 @@ if __name__ == '__main__':
         print(f"################  Start training at epoch {i+1}  ################")
         prediction = [] # record all predicted y obtained in this current training epoch
         for img_idx in tqdm(range(len(x_train))):
-            x = x_train[img_idx].flatten() # flatten all rows into one row
-            ground_truth = y_train[img_idx]
+            # get X and y
+            x = x_train[img_idx].flatten().reshape(-1, 1) # flatten all rows, reshape to a column vector
+            y_true = y_train[img_idx]
             w = weight.get_weight_metrix()
-            pred_y = np.matmul(x, w) # linear combination of 1*784 metrix and 784 * 1 metrix
-            prediction.append(pred_y)
+            # BEGIN Forward
+            y_pred = np.matmul(w, x) # linear combination of 1*784 metrix and 784 * 10 metrix
+            p_softmax = Softmax(y_pred)
+            loss = CrossEntropyLoss(p_softmax, y_true)
+            # END Forward
+
+            # BEGIN Backward
+            grad_J_to_p = Gradient.loss_layer(p_softmax, y_true)
+            grad_J_to_y = Gradient.softmax_layer(p_softmax, grad_J_to_p)
+            print(grad_J_to_y)
+            grad_y_to_w = Gradient.linear_layer(x)
+            check = f"""
+            grad_J_to_p:{grad_J_to_p.shape}
+            grad_p_to_y:{grad_J_to_y.shape}
+            grad_y_to_w:{grad_y_to_w.shape}
+            np.matmul(grad_J_to_p, grad_p_to_y.T): {(np.matmul(grad_J_to_p.T, grad_y_to_w)).shape}
+            """
+            # print(check)
+            grad_J_to_w = np.matmul(grad_J_to_y.T, grad_y_to_w)
+            print(grad_J_to_w.shape)
+            # END Backward
+
             # calculate gradient, aka currrent_gradient
             grad_after_this_sample = gradients.calculate_gradient(x, pred_y, y_train)
             # TODO: gradient decent
             weight.update_weight_metrix(grad_after_this_sample, lr)
-        # Calculate cross entropy loss
-        loss = CrossEntropyLoss(prediction, y_train)
+            # Calculate cross entropy loss
 
         # testing
         correct_num = 0
         w = weight.get_weight_metrix()
         print(f"################  Start testing at epoch {i+1}  ################")
-        for test_idx in tqdm(range(len(x_test))):
+        for test_idx in tqdm(range(int(len(x_test)/10))):
             x = x_test[test_idx].flatten()
             ground_truth = y_test[test_idx]
             pred_y = np.matmul(x, w)
