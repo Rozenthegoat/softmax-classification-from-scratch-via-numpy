@@ -8,6 +8,7 @@ import mnist
 from os.path import join
 import time
 from tqdm import tqdm
+import math
 
 class Weight():
     def __init__(self, param_num, lr):
@@ -19,7 +20,7 @@ class Weight():
         self.loss  : loss
         """
         self.weight_metrix = np.zeros((10, param_num)) # 10 classes
-        self.bias = 0.1
+        self.bias = np.zeros((10, 1)) - 1e-5
         self.loss = 0
         self.lr = lr
 
@@ -120,8 +121,8 @@ if __name__ == '__main__':
     ground_truth = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
     # hyperparameters
-    lr = 1e-2
-    epochs = 5
+    lr = 1e-3
+    epochs = 20
     batch_size = 100
 
     # Initialize learnable parameters
@@ -136,10 +137,10 @@ if __name__ == '__main__':
     # training procedure
     for i in range(epochs):
         print(f"################  Start training at epoch {i+1}  ################")
-        prediction = [] # record all predicted y obtained in this current training epoch
+        # print(weight.get_weight_metrix(), weight.get_bias())
         for img_idx in tqdm(range(len(x_train))):
 
-            # get X and y
+            # get X, y, w, b
             x = x_train[img_idx].flatten().reshape(-1, 1) # flatten all rows, reshape to a column vector
             y_true = y_train[img_idx]
             w = weight.get_weight_metrix()
@@ -165,21 +166,22 @@ if __name__ == '__main__':
         # TODO: gradient decent
         weight.update_weight_metrix(grad_w, grad_b)
         # Calculate cross entropy loss
+        print(f"###  Finish training epoch {i+1}, loss: {loss:.4f}  ###")
 
-        # testing
-        correct_num = 0
-        w = weight.get_weight_metrix()
-        b = weight.get_bias()
-        print(f"################  Testing  ################")
-        for test_idx in tqdm(range(len(x_test))):
-            x = x_test[test_idx].flatten()
-            ground_truth = y_test[test_idx]
-            y_pred = np.matmul(w, x) + b # linear combination of 1*784 metrix and 784 * 10 metrix
-            p_softmax = Softmax(y_pred)
-            if np.argmax(p_softmax) == ground_truth:
-                correct_num += 1
-        accuracy = correct_num / len(x_test)
-        print(f"###  Finish training epoch {i+1}, loss: {loss:.4f}, accuracy: {100*accuracy:.2f}%  ###")
+    # testing
+    correct_num = 0
+    w = weight.get_weight_metrix()
+    b = weight.get_bias()
+    print(f"################  Testing  ################")
+    for test_idx in tqdm(range(len(x_test))):
+        x = x_test[test_idx].flatten().reshape(-1, 1)
+        ground_truth = y_test[test_idx]
+        y_pred = np.matmul(w, x) + b # linear combination of 1*784 metrix and 784 * 10 metrix
+        p_softmax = Softmax(y_pred)
+        if np.argmax(p_softmax) == ground_truth:
+            correct_num += 1
+    accuracy = correct_num / len(x_test)
+    print(f"### Finish testing, accuracy: {100*accuracy:.2f}%  ###")
 
     train_end_time = time.time()
     print(f"Finish training, final accuracy: {100*accuracy:.2f}%, cost {train_end_time-train_start_time:.2f} sec.")

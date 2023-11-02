@@ -54,7 +54,7 @@ class MnistDataLoader(object):
         # 
         for i in range(size):
             img = np.array(image_data[i * rows * cols : (i + 1) * rows * cols]) # get ith image pixel-wise
-            img = img.reshape(28, 28)
+            img = img.reshape(28, 28)[::3, ::3]
             images.append(img)
 
         return images, labels
@@ -99,6 +99,6 @@ x_train, y_train, x_test, y_test are all in type of {type(x_train)}.
 For each image, its type is {type(x_train[0])}, the shape of it is: {x_train[0].shape}.
 ########################################################################################
     """
-    # print(mnist_description)
+    print(mnist_description)
 
     return x_train, y_train, x_test, y_test

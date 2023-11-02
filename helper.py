@@ -1,5 +1,5 @@
 import numpy as np
-from math import exp, log
+from math import exp, log, inf
 
 num_of_class = 10 # number of classes
 
@@ -12,9 +12,17 @@ def Softmax(predict):
     for i in range(predict.shape[0]):
         y_i = predict[i]
         exp_all += np.exp(y_i)
+        # try:
+        #     exp_all += exp(y_i)
+        # except OverflowError:
+        #     exp_all += inf
     for i in range(predict.shape[0]):
+        # try:
+        #     p_i = exp(predict[i]) / exp_all
+        # except OverflowError:
+        #     p_i = inf / exp_all
         p_i = np.exp(predict[i]) / exp_all
-        softmax[i] = p_i
+        softmax[i] = p_i + 1e-7
     return softmax
 
 def CrossEntropyLoss(p_softmax, y_true):
