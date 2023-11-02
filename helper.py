@@ -11,9 +11,9 @@ def Softmax(predict):
     exp_all = 0
     for i in range(predict.shape[0]):
         y_i = predict[i]
-        exp_all += exp(y_i)
+        exp_all += np.exp(y_i)
     for i in range(predict.shape[0]):
-        p_i = exp(predict[i]) / exp_all
+        p_i = np.exp(predict[i]) / exp_all
         softmax[i] = p_i
     return softmax
 
@@ -26,10 +26,12 @@ def CrossEntropyLoss(p_softmax, y_true):
     loss = 0
     for i in range(p_softmax.shape[0]):
         p_i = p_softmax[i]
+        if p_i == 0:
+            p_i = 1e-3
         y_hat = one_hot[i] # aka y_hat
         # print(y_true, log(p_i))
         loss += - y_hat * log(p_i)
-    return loss
+    return float(loss)
 
 def get_one_hot(y_true):
     one_hot = [0] * num_of_class
